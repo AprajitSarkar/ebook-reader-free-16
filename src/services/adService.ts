@@ -1,4 +1,3 @@
-
 import { Capacitor } from '@capacitor/core';
 import { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition, AdOptions, AdLoadInfo, InterstitialAdPluginEvents } from '@capacitor-community/admob';
 
@@ -36,11 +35,8 @@ export const adService: AdMobService = {
     if (Capacitor.isNativePlatform()) {
       try {
         console.log("Initializing AdMob...");
-        // Initialize AdMob with the app ID
-        await AdMob.initialize({
-          requestTrackingAuthorization: true,
-          initializeForTesting: false,
-        });
+        // Remove requestTrackingAuthorization and initializeForTesting
+        await AdMob.initialize({});
         
         // Set up event listeners for interstitial ads
         AdMob.addListener(InterstitialAdPluginEvents.Loaded, (info: AdLoadInfo) => {
