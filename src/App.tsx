@@ -43,10 +43,15 @@ const RouteTracker = () => {
   const location = useLocation();
   
   useEffect(() => {
-    // Check if the current route is a content detail page
-    if (location.pathname === '/poem-details' || location.pathname === '/book-details') {
+    console.log("Route changed to:", location.pathname);
+    
+    // Check if the current route is a content detail page (poem or book details)
+    if (location.pathname.includes('poem-details') || location.pathname.includes('book-details')) {
+      console.log("Content detail page detected, tracking for ads");
       // Track content open for ad frequency
-      adService.trackContentOpen().catch(console.error);
+      adService.trackContentOpen().catch(error => {
+        console.error("Error tracking content open for ads:", error);
+      });
     }
   }, [location.pathname]);
   
@@ -117,7 +122,21 @@ const App = () => {
           console.log("Ads initialized successfully");
         } catch (error) {
           console.error('Error initializing ads:', error);
+          // Retry ad initialization after a delay
+          setTimeout(async () => {
+            try {
+              console.log("Retrying ad initialization...");
+              await adService.initialize();
+              setAdsInitialized(true);
+              await adService.showBanner();
+              console.log("Ads initialized successfully on retry");
+            } catch (retryError) {
+              console.error('Error on retry of ad initialization:', retryError);
+            }
+          }, 3000);
         }
+      } else {
+        console.log("Not a native platform, skipping ad initialization");
       }
     };
     

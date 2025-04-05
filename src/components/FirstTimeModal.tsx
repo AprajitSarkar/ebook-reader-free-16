@@ -20,6 +20,10 @@ const FirstTimeModal = ({ onAccept, onClose }: FirstTimeModalProps) => {
     }
   };
 
+  const handleCheckboxChange = () => {
+    setAccepted(!accepted);
+  };
+
   return (
     <AlertDialog open={true}>
       <AlertDialogContent className="max-w-sm">
@@ -43,14 +47,14 @@ const FirstTimeModal = ({ onAccept, onClose }: FirstTimeModalProps) => {
               <Checkbox 
                 id="terms" 
                 checked={accepted} 
-                onCheckedChange={(checked) => setAccepted(checked === true)}
+                onCheckedChange={() => handleCheckboxChange()}
               />
               <label 
                 htmlFor="terms" 
                 className="cursor-pointer"
                 onClick={(e) => {
                   e.preventDefault();
-                  setAccepted(!accepted);
+                  handleCheckboxChange();
                 }}
               >
                 <span>
