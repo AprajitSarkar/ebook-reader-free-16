@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,54 +12,94 @@ import { useUserSettings } from "@/contexts/UserSettingsContext";
 import { VoiceOption, speechService } from "@/services/speechService";
 import { toast } from "@/lib/toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Capacitor } from '@capacitor/core';
 
 const Settings = () => {
   const navigate = useNavigate();
   const { settings, updateVoice, toggleOfflineMode, testVoice } = useUserSettings();
-  const [allVoices, setAllVoices] = useState<VoiceOption[]>(speechService.getVoices());
+  const [allVoices, setAllVoices] = useState<VoiceOption[]>([]);
   const [showClearDataDialog, setShowClearDataDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Initial voice loading with error handling
+    try {
+      const initialVoices = speechService.getVoices();
+      setAllVoices(initialVoices);
+      console.log("Initial voices loaded:", initialVoices.length);
+    } catch (error) {
+      console.error("Error loading initial voices:", error);
+    } finally {
+      // Always mark as loaded to prevent infinite loading
+      setTimeout(() => setIsLoading(false), 500);
+    }
+    
     const checkForVoices = () => {
-      const voices = speechService.getVoices();
-      if (voices.length > allVoices.length) {
-        console.log(`Voice count changed from ${allVoices.length} to ${voices.length}`);
-        setAllVoices(voices);
+      try {
+        const voices = speechService.getVoices();
+        if (voices.length > allVoices.length) {
+          console.log(`Voice count changed from ${allVoices.length} to ${voices.length}`);
+          setAllVoices(voices);
+        }
+      } catch (error) {
+        console.error("Error checking for voices:", error);
       }
     };
     
     const intervalId = setInterval(checkForVoices, 1000);
     
-    if (/Android/i.test(navigator.userAgent)) {
-      const dummyUtterance = new SpeechSynthesisUtterance("");
-      window.speechSynthesis.speak(dummyUtterance);
-      window.speechSynthesis.cancel();
-      
-      setTimeout(checkForVoices, 500);
+    // Voice initialization workaround for Android
+    if (Capacitor.isNativePlatform() || /Android/i.test(navigator.userAgent)) {
+      try {
+        const dummyUtterance = new SpeechSynthesisUtterance("");
+        window.speechSynthesis.speak(dummyUtterance);
+        window.speechSynthesis.cancel();
+        
+        // Give more time for Android to initialize voices
+        setTimeout(checkForVoices, 1000);
+      } catch (error) {
+        console.error("Error initializing speech synthesis:", error);
+      }
     }
     
     return () => clearInterval(intervalId);
   }, [allVoices.length]);
 
   const handleVoiceChange = (voiceId: string) => {
-    if (voiceId === "default") {
-      updateVoice(null);
-      toast.success("Voice updated to System Default");
-    } else {
-      const selectedVoice = allVoices.find(voice => voice.id === voiceId) || null;
-      updateVoice(selectedVoice);
-      toast.success(`Voice updated to ${selectedVoice?.name || "Default"}`);
+    try {
+      if (voiceId === "default") {
+        updateVoice(null);
+        toast.success("Voice updated to System Default");
+      } else {
+        const selectedVoice = allVoices.find(voice => voice.id === voiceId) || null;
+        updateVoice(selectedVoice);
+        toast.success(`Voice updated to ${selectedVoice?.name || "Default"}`);
+      }
+    } catch (error) {
+      console.error("Error changing voice:", error);
+      toast.error("Failed to update voice");
     }
   };
 
   const handleOfflineToggle = (enabled: boolean) => {
-    toggleOfflineMode(enabled);
-    toast.success(`Offline mode ${enabled ? "enabled" : "disabled"}`);
+    try {
+      toggleOfflineMode(enabled);
+      toast.success(`Offline mode ${enabled ? "enabled" : "disabled"}`);
+    } catch (error) {
+      console.error("Error toggling offline mode:", error);
+      toast.error("Failed to toggle offline mode");
+    }
   };
 
   const handleTestVoice = () => {
-    testVoice();
-    toast.info("Testing voice...");
+    try {
+      console.log("Testing voice with settings:", settings);
+      testVoice();
+      toast.info("Testing voice...");
+    } catch (error) {
+      console.error("Error testing voice:", error);
+      toast.error("Failed to test voice");
+    }
   };
 
   const clearAllUserData = () => {
@@ -75,11 +116,27 @@ const Settings = () => {
     }
   };
 
-  const googleVoices = allVoices.filter(voice => voice.name.includes("Google"));
-  const otherVoices = allVoices.filter(voice => !voice.name.includes("Google"));
-  
-  const onlineVoices = allVoices.filter(voice => voice.isOnlineOnly);
+  // Filter voices if available
   const offlineVoices = allVoices.filter(voice => !voice.isOnlineOnly);
+  const onlineVoices = allVoices.filter(voice => voice.isOnlineOnly);
+  
+  // Display a loading message while initializing
+  if (isLoading) {
+    return (
+      <div className="container max-w-3xl mx-auto px-4 py-5 pb-28">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold gradient-text">Settings</h1>
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
+        <div className="flex items-center justify-center h-40">
+          <p>Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container max-w-3xl mx-auto px-4 py-5 pb-28">
@@ -151,6 +208,7 @@ const Settings = () => {
               
               <div className="text-xs text-muted-foreground mt-1">
                 Selected: {settings.preferredVoice?.name || "System Default"}
+                {allVoices.length === 0 && " (No voices detected)"}
               </div>
               
               <Button 
@@ -269,7 +327,7 @@ const Settings = () => {
         
         <div className="text-center text-xs text-muted-foreground py-6">
           <p>eBook Library</p>
-          <p>Version 1.0.0</p>
+          <p>Version 1.1.0</p>
           <p>© 2024 Aprajit Sarkar</p>
         </div>
       </div>

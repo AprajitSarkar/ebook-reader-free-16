@@ -15,13 +15,9 @@ const FirstTimeModal = ({ onAccept, onClose }: FirstTimeModalProps) => {
   const [accepted, setAccepted] = useState(false);
 
   const handleAccept = () => {
-    setAccepted(true);
-    onAccept();
-  };
-
-  // Fixed the toggle function to properly handle the checkbox state
-  const toggleAccepted = (checked: boolean | string) => {
-    setAccepted(checked === true);
+    if (accepted) {
+      onAccept();
+    }
   };
 
   return (
@@ -47,9 +43,16 @@ const FirstTimeModal = ({ onAccept, onClose }: FirstTimeModalProps) => {
               <Checkbox 
                 id="terms" 
                 checked={accepted} 
-                onCheckedChange={toggleAccepted}
+                onCheckedChange={(checked) => setAccepted(checked === true)}
               />
-              <label htmlFor="terms" className="cursor-pointer" onClick={() => setAccepted(!accepted)}>
+              <label 
+                htmlFor="terms" 
+                className="cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setAccepted(!accepted);
+                }}
+              >
                 <span>
                   <Link to="/privacy" className="text-primary hover:underline" onClick={onClose}>
                     Privacy Policy
