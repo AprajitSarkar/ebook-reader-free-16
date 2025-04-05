@@ -65,6 +65,7 @@ const App = () => {
   const [showOfflineNotice, setShowOfflineNotice] = useState(false);
   const [showFirstTimeModal, setShowFirstTimeModal] = useState(false);
   const [adsInitialized, setAdsInitialized] = useState(false);
+  const [lastActiveTime, setLastActiveTime] = useState(Date.now());
 
   const hideSplash = () => {
     console.log("Splash screen completed, showing main app");
@@ -143,13 +144,33 @@ const App = () => {
     if (!showSplash) {
       initAds();
     }
+
+    // Handle page visibility changes for App Open ads
+    const handleVisibilityChange = () => {
+      if (Capacitor.isNativePlatform() && adsInitialized) {
+        if (document.visibilityState === 'visible') {
+          const now = Date.now();
+          // Only show App Open ad if the app was in background for at least 30 seconds
+          if (now - lastActiveTime > 30000) {
+            console.log("App became visible after being hidden, showing App Open ad");
+            adService.showAppOpenAd().catch(console.error);
+          }
+        } else {
+          // App going to background, update last active time
+          setLastActiveTime(Date.now());
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (Capacitor.isNativePlatform()) {
         adService.removeBanner().catch(console.error);
       }
     };
-  }, [showSplash]);
+  }, [showSplash, adsInitialized, lastActiveTime]);
 
   const handleOfflineRetry = () => {
     if (navigator.onLine) {

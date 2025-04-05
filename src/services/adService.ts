@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition, AdOptions, AdLoadInfo, InterstitialAdPluginEvents } from '@capacitor-community/admob';
+import { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition, AdOptions, AdLoadInfo, InterstitialAdPluginEvents, AppOpenAdOptions } from '@capacitor-community/admob';
 
 const APP_ID = {
   android: 'ca-app-pub-3279473081670891~9908825517',
@@ -16,10 +16,16 @@ const INTERSTITIAL_ID = {
   ios: 'ca-app-pub-3279473081670891/4073916578', // Using the same ID for iOS for now
 };
 
+const APP_OPEN_ID = {
+  android: 'ca-app-pub-3279473081670891/2827582812',
+  ios: 'ca-app-pub-3279473081670891/2827582812', // Using the same ID for iOS for now
+};
+
 // Track content opens for interstitial ads
 let contentOpenCount = 0;
 const INTERSTITIAL_FREQUENCY = 2; // Show interstitial every X content opens
 let isInterstitialLoaded = false;
+let isAppOpenAdLoaded = false;
 
 interface AdMobService {
   initialize: () => Promise<void>;
@@ -28,6 +34,8 @@ interface AdMobService {
   prepareInterstitial: () => Promise<void>;
   showInterstitial: () => Promise<void>;
   trackContentOpen: () => Promise<void>;
+  prepareAppOpenAd: () => Promise<void>;
+  showAppOpenAd: () => Promise<void>;
 }
 
 export const adService: AdMobService = {
@@ -51,8 +59,9 @@ export const adService: AdMobService = {
           adService.prepareInterstitial().catch(console.error);
         });
         
-        // Prepare interstitial on initialization
+        // Prepare interstitial and app open ad on initialization
         await adService.prepareInterstitial();
+        await adService.prepareAppOpenAd();
         
         console.log("AdMob initialized successfully");
         return Promise.resolve();
@@ -163,7 +172,6 @@ export const adService: AdMobService = {
     return Promise.resolve();
   },
 
-  // Method to track content opens and show interstitial ads when needed
   trackContentOpen: async () => {
     contentOpenCount += 1;
     console.log(`Content opened ${contentOpenCount} times`);
@@ -183,6 +191,66 @@ export const adService: AdMobService = {
     } else if (!isInterstitialLoaded) {
       // Ensure we always have an interstitial ready
       adService.prepareInterstitial().catch(console.error);
+    }
+    return Promise.resolve();
+  },
+
+  prepareAppOpenAd: async () => {
+    if (Capacitor.isNativePlatform() && !isAppOpenAdLoaded) {
+      try {
+        const platform = Capacitor.getPlatform();
+        console.log(`Preparing App Open ad for platform: ${platform}`);
+        
+        const options: AppOpenAdOptions = {
+          adId: platform === 'android' ? APP_OPEN_ID.android : APP_OPEN_ID.ios,
+        };
+        
+        // Prepare the App Open ad
+        await AdMob.prepareAppOpenAd(options);
+        console.log("App Open ad prepared with ID:", options.adId);
+        isAppOpenAdLoaded = true;
+        return Promise.resolve();
+      } catch (error) {
+        console.error("Error preparing App Open ad:", error);
+        isAppOpenAdLoaded = false;
+        return Promise.reject(error);
+      }
+    }
+    return Promise.resolve();
+  },
+
+  showAppOpenAd: async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        if (!isAppOpenAdLoaded) {
+          console.log("App Open ad not loaded yet, preparing now...");
+          await adService.prepareAppOpenAd();
+          // Add a small delay to ensure the ad is ready
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        console.log("Showing App Open ad");
+        const result = await AdMob.showAppOpenAd();
+        console.log("AdMob App Open ad shown with result:", result);
+        isAppOpenAdLoaded = false;
+        
+        // Prepare the next App Open ad in advance
+        setTimeout(() => {
+          adService.prepareAppOpenAd().catch(console.error);
+        }, 1000);
+        
+        return Promise.resolve();
+      } catch (error) {
+        console.error("Error showing App Open ad:", error);
+        isAppOpenAdLoaded = false;
+        
+        // Attempt to prepare again
+        setTimeout(() => {
+          adService.prepareAppOpenAd().catch(console.error);
+        }, 2000);
+        
+        return Promise.reject(error);
+      }
     }
     return Promise.resolve();
   }
