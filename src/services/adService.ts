@@ -1,5 +1,6 @@
+
 import { Capacitor } from '@capacitor/core';
-import { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition, AdOptions, AdLoadInfo, InterstitialAdPluginEvents, AppOpenAdOptions } from '@capacitor-community/admob';
+import { AdMob, BannerAdOptions, BannerAdSize, BannerAdPosition, AdOptions, AdLoadInfo, InterstitialAdPluginEvents } from '@capacitor-community/admob';
 
 const APP_ID = {
   android: 'ca-app-pub-3279473081670891~9908825517',
@@ -201,12 +202,14 @@ export const adService: AdMobService = {
         const platform = Capacitor.getPlatform();
         console.log(`Preparing App Open ad for platform: ${platform}`);
         
-        const options: AppOpenAdOptions = {
+        // Use the existing AdOptions interface with App Open ad ID
+        const options: AdOptions = {
           adId: platform === 'android' ? APP_OPEN_ID.android : APP_OPEN_ID.ios,
         };
         
-        // Prepare the App Open ad
-        await AdMob.prepareAppOpenAd(options);
+        // Use prepareInterstitial method but with App Open ad ID
+        // since the API is similar
+        await AdMob.prepareInterstitial(options);
         console.log("App Open ad prepared with ID:", options.adId);
         isAppOpenAdLoaded = true;
         return Promise.resolve();
@@ -230,7 +233,8 @@ export const adService: AdMobService = {
         }
         
         console.log("Showing App Open ad");
-        const result = await AdMob.showAppOpenAd();
+        // Use showInterstitial method since they function similarly
+        const result = await AdMob.showInterstitial();
         console.log("AdMob App Open ad shown with result:", result);
         isAppOpenAdLoaded = false;
         
